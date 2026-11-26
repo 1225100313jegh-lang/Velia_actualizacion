@@ -1,67 +1,48 @@
 # Velia
 
-## 1. Descripción breve
-Velia es una aplicación móvil de cuidado digital para adultos mayores que viven en asilos o con su familia. Permite llevar el horario de medicamentos, un calendario de citas y aniversarios, un botón verde "Estoy bien" para avisar a la familia y un botón rojo de emergencia. Está hecha con Flutter y Dart.
+Velia es una app Flutter para coordinar el cuidado cotidiano de adultos mayores y su familia. La app usa Firebase Authentication y Cloud Firestore. No usa Cloud Functions ni notificaciones push.
 
-## 2. Los 3 tipos de usuario y sus dashboards
+## Roles y navegacion
 
-| Tipo de usuario | Qué ve en su dashboard | Usuario de prueba |
-|---|---|---|
-| **Administrador** | Totales de usuarios, eventos y medicamentos, y la lista de usuarios registrados. | `admin@velia.com` / `Admin123` |
-| **Cliente (adulto mayor)** | 3 pestañas: Horario, Chequeo (botón "Estoy bien") y Calendario, más el botón de emergencia. | `carmen@velia.com` / `Carmen123` |
-| **Familiar** | 3 pestañas: Resumen (último aviso, próxima pastilla, historial), Horario y Calendario. | `laura@velia.com` / `Laura123` |
+- Familiar principal: crea su cuenta y configura uno o varios adultos, contactos, horarios, rutina, citas y accesibilidad.
+- Adulto mayor: entra con el PIN que genera Velia. En una pantalla encuentra Estoy bien, rutina, citas y Emergencia.
+- Familiar invitado: canjea un codigo de un solo uso que vence en 24 horas y tiene acceso de consulta.
+- Administrador: consulta adultos agrupados por familiar y archiva o restaura perfiles.
 
-La navegación entre dashboards se hace desde el **menú lateral** (ícono de las tres rayitas), que también tiene la opción de cerrar sesión.
+El familiar conserva las pestanas Inicio, Horario y Calendario. Perfil y configuracion se abren desde el engrane.
 
-## 3. Manejo de estado elegido (y por qué)
-Se eligió **Provider** con un `ChangeNotifier` llamado `EstadoApp`.
-- **Un solo lugar para todo:** el usuario, el rol activo, la lista de medicamentos, la lista de eventos y los avisos "Estoy bien" viven en `EstadoApp`.
-- **Persiste al navegar:** el estado se crea una sola vez en la raíz de la app (`main.dart`), por eso no se pierde al cambiar de pantalla o de panel.
-- **Las pantallas se actualizan solas:** con `context.watch` se redibujan cuando algo cambia y con `context.read` se ejecutan acciones (agregar, eliminar, iniciar sesión).
+## Firebase
 
-> Los datos viven en memoria: se conservan al navegar, pero se reinician al cerrar la app por completo.
+El archivo android/app/google-services.json se asocia al paquete Android com.example.velia. Firebase Authentication y Cloud Firestore ya estan conectados al proyecto velia-1a9ea. La base estandar esta en northamerica-south1 (Mexico), y la configuracion Email/Password esta en firebase.json.
 
-## 4. Cómo ejecutar la app
-1. Instalar Flutter y tener un emulador o un celular conectado.
-2. Crear un proyecto: `flutter create velia`
-3. Reemplazar la carpeta `lib` y el archivo `pubspec.yaml` por los de este repositorio.
-4. Instalar dependencias: `flutter pub get`
-5. Ejecutar: `flutter run`
+1. Ejecuta flutter pub get y flutter run.
+2. Para publicar cambios de reglas: firebase deploy --only firestore:rules.
+3. Para modificar los proveedores de acceso: edita firebase.json y ejecuta firebase deploy --only auth.
 
-Estructura de `lib/`:
-- `main.dart`: inicio de la app y Provider.
-- `estado/estado_app.dart`: todo el estado.
-- `modelos/`: `Usuario`, `Medicamento` y `Evento`.
-- `datos/datos_ejemplo.dart`: datos con los que arranca la app.
-- `pantallas/`: una pantalla por archivo (splash, login, registro, 3 paneles, horario, chequeo, calendario, formularios y detalle).
-- `widgets/`: botón de emergencia, menú lateral y estado vacío.
-- `utilidades/`: validadores, formatos de fecha y navegación.
-- `tema/colores.dart`: colores de la app.
+El proyecto esta en el plan Spark, sin metodo de pago asociado. Firebase incluye cuotas gratuitas; si se excede la cuota de un producto, su uso se interrumpe hasta el siguiente ciclo en vez de generar un cobro automatico. Consulta los limites vigentes antes de una demostracion.
 
-## 6. Screenshots
+## Datos y permisos
 
-### Splashscreen
-![Splash](screenshots/splash.jpg)
+Firestore almacena perfiles, contactos, rutina, citas, horarios de bienestar, historial, accesibilidad, invitaciones, vinculos y las 100 frases del adulto. Firebase Auth conserva la sesion. El familiar principal edita; el adulto registra avisos y emergencias; familiares invitados consultan. Los perfiles archivados se conservan.
 
-### Autenticación
-![Login](screenshots/login.jpg)
-![Registro](screenshots/registro.jpg)
+Cada adulto tiene un PIN de seis digitos generado automaticamente. El familiar principal puede consultarlo o renovarlo desde Perfil.
 
-### Dashboards
-![Dashboard Admin](screenshots/dashboard-admin.jpg)
-![Dashboard Cliente](screenshots/dashboard-cliente.jpg)
-![Dashboard Operador (Familiar)](screenshots/dashboard-operador.jpg)
+Los avisos de retraso a los cinco y diez minutos se registran para que la familia los vea al sincronizar. Sin push no llegan a otro telefono mientras Velia esta cerrada.
 
-### Listas
-![Lista principal](screenshots/lista-principal.jpg)
-![Lista detalle](screenshots/lista-detalle.jpg)
-![Estado vacío](screenshots/lista-vacia.jpg)
+Los recordatorios de rutina y citas son locales para los siguientes siete dias. Velia los actualiza al abrirse o al cambiar datos en ese telefono. Emergencia registra el evento y en Android marca al contacto principal despues del permiso de llamada.
 
-### Formularios
-![Formulario dominio](screenshots/formulario.jpg)
-![Formulario horario](screenshots/formulario-horario.jpg)
+## Accesibilidad
 
-### Evidencia funcional
-![Foto equipo](screenshots/foto-equipo.jpg)
-![Navegación](screenshots/navegacion.jpg)
-![Botón Estoy bien](screenshots/estoy-bien.jpg)
+El adulto tiene una vista vertical, texto ampliable, alto contraste ajustable y lectura en voz alta. Se respeta TalkBack. Un toque activa, dos leen y tres detienen la lectura en las acciones y tarjetas principales. El boton Estoy bien se ve gris fuera del periodo que configura la familia.
+
+## Carpetas principales
+
+- lib/servicios/servicio_nube_velia.dart: Authentication, Firestore y sincronizacion.
+- lib/servicios/notificaciones_locales_velia.dart: recordatorios locales.
+- lib/servicios/servicio_lectura_velia.dart: lectura TTS.
+- lib/modelos/modelos_velia.dart: perfiles, contactos, rutina, horarios y citas.
+- lib/pantallas/: acceso, registro, navegacion, ajustes y administracion.
+- lib/config/firebase_options.dart: opciones Firebase Android.
+- firestore.rules: permisos de Firestore.
+
+Las capturas que ya estan en screenshots corresponden a la version anterior y deben actualizarse.

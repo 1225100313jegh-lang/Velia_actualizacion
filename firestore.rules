@@ -1,0 +1,197 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userPath(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
+
+    function adultPath(adultId) {
+      return /databases/$(database)/documents/adults/$(adultId);
+    }
+
+    function isAdmin() {
+      return signedIn() &&
+        exists(userPath(request.auth.uid)) &&
+        get(userPath(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isOwner(adultId) {
+      return signedIn() &&
+        exists(adultPath(adultId)) &&
+        get(adultPath(adultId)).data.ownerUid == request.auth.uid;
+    }
+
+    function isOwnerAfter(adultId) {
+      return signedIn() &&
+        getAfter(adultPath(adultId)).data.ownerUid == request.auth.uid;
+    }
+
+    function isAdult(adultId) {
+      return signedIn() &&
+        exists(adultPath(adultId)) &&
+        get(adultPath(adultId)).data.adultUid == request.auth.uid;
+    }
+
+    function hasAdultLink(adultId) {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)/adultLinks/$(adultId));
+    }
+
+    function canReadAdult(adultId) {
+      return isAdmin() || isOwner(adultId) || isAdult(adultId) || hasAdultLink(adultId);
+    }
+
+    function canEditAdult(adultId) {
+      return isAdmin() || isOwner(adultId);
+    }
+
+    match /users/{uid} {
+      allow get: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow list: if isAdmin();
+      allow create: if signedIn() && request.auth.uid == uid &&
+        request.resource.data.role == 'family' ||
+        (signedIn() && request.resource.data.role == 'adult' &&
+         getAfter(adultPath(request.resource.data.adultId)).data.adultUid == uid &&
+         getAfter(adultPath(request.resource.data.adultId)).data.ownerUid == request.auth.uid);
+      allow update: if isAdmin() ||
+        (signedIn() && request.auth.uid == uid && resource.data.role == 'family' &&
+         request.resource.data.role == 'family');
+      allow delete: if isAdmin() && resource.data.role != 'admin';
+
+      match /adultLinks/{adultId} {
+        allow get, list: if signedIn() && (request.auth.uid == uid || isAdmin());
+        allow create: if isAdmin() ||
+          (signedIn() && request.auth.uid == uid &&
+           ((request.resource.data.role == 'owner' && isOwnerAfter(adultId)) ||
+            (request.resource.data.role == 'viewer' &&
+             getAfter(/databases/$(database)/documents/invitations/$(request.resource.data.inviteId)).data.redeemedBy == uid &&
+             getAfter(/databases/$(database)/documents/invitations/$(request.resource.data.inviteId)).data.adultId == adultId)));
+        allow update, delete: if isAdmin() || isOwner(adultId);
+      }
+    }
+
+    match /invitations/{inviteId} {
+      allow get: if signedIn();
+      allow list: if isAdmin();
+      allow create: if signedIn() &&
+        request.resource.data.ownerUid == request.auth.uid &&
+        isOwner(request.resource.data.adultId) &&
+        request.resource.data.redeemedBy == null &&
+        request.resource.data.expiresAt > request.time &&
+        request.resource.data.expiresAt <= request.time + duration.value(24, 'h');
+      allow update: if isAdmin() ||
+        (signedIn() && resource.data.redeemedBy == null &&
+         request.time < resource.data.expiresAt &&
+         request.resource.data.redeemedBy == request.auth.uid &&
+         request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['redeemedBy', 'redeemedAt']));
+      allow delete: if isAdmin() || isOwner(resource.data.adultId);
+    }
+
+    match /adults/{adultId} {
+      allow get, list: if isAdmin() ||
+        (resource.data.status != 'archived' && canReadAdult(adultId));
+      allow create: if signedIn() &&
+        request.resource.data.ownerUid == request.auth.uid &&
+        request.resource.data.status == 'active';
+      allow update: if canEditAdult(adultId);
+      allow delete: if false;
+
+      match /private/{privateId} {
+        // PIN visible únicamente al familiar principal. La administración puede renovar,
+        // pero no leer, el PIN desde la aplicación.
+        allow get, list: if isOwner(adultId);
+        allow create, update: if canEditAdult(adultId) ||
+          (isOwnerAfter(adultId) && request.resource.data.pin is string);
+        allow delete: if isOwner(adultId) || isAdmin();
+      }
+
+      match /members/{memberUid} {
+        allow get, list: if isOwner(adultId) || isAdmin();
+        allow create: if signedIn() && request.auth.uid == memberUid &&
+          request.resource.data.uid == memberUid &&
+          ((request.resource.data.role == 'owner' && isOwnerAfter(adultId)) ||
+           (request.resource.data.role == 'viewer' &&
+            getAfter(/databases/$(database)/documents/invitations/$(request.resource.data.inviteId)).data.redeemedBy == memberUid &&
+            getAfter(/databases/$(database)/documents/invitations/$(request.resource.data.inviteId)).data.adultId == adultId));
+        allow update: if isOwner(adultId) || isAdmin();
+        allow delete: if isOwner(adultId) || isAdmin();
+      }
+
+      match /invites/{inviteId} {
+        allow get: if signedIn();
+        allow list: if isOwner(adultId) || isAdmin();
+        allow create: if canEditAdult(adultId) &&
+          request.resource.data.ownerUid == request.auth.uid &&
+          request.resource.data.adultId == adultId &&
+          request.resource.data.redeemedBy == null &&
+          request.resource.data.expiresAt > request.time &&
+          request.resource.data.expiresAt <= request.time + duration.value(24, 'h');
+        allow update: if canEditAdult(adultId) ||
+          (signedIn() && resource.data.redeemedBy == null &&
+           request.time < resource.data.expiresAt &&
+           request.resource.data.redeemedBy == request.auth.uid &&
+           request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['redeemedBy', 'redeemedAt']));
+        allow delete: if isOwner(adultId) || isAdmin();
+      }
+
+      match /routine/{itemId} {
+        allow read: if canReadAdult(adultId);
+        allow create, update, delete: if canEditAdult(adultId);
+      }
+
+      match /appointments/{appointmentId} {
+        allow read: if canReadAdult(adultId);
+        allow create, update, delete: if canEditAdult(adultId);
+      }
+
+      match /checkInSchedules/{scheduleId} {
+        allow read: if canReadAdult(adultId);
+        allow create, update, delete: if canEditAdult(adultId);
+      }
+
+      match /checkIns/{checkInId} {
+        allow read: if canReadAdult(adultId);
+        allow create: if isAdult(adultId) &&
+          request.resource.data.adultUid == request.auth.uid;
+        allow update, delete: if isAdmin() || isOwner(adultId);
+      }
+
+      match /checkInState/{stateId} {
+        allow read, write: if isAdult(adultId);
+      }
+
+      match /phrases/{phraseId} {
+        allow create: if isAdmin() || isOwner(adultId) || isOwnerAfter(adultId);
+        allow get, list: if isAdult(adultId);
+        allow update, delete: if false;
+      }
+
+      match /rewards/{rewardId} {
+        allow read, write: if isAdult(adultId);
+      }
+
+      match /history/{entryId} {
+        allow read: if canReadAdult(adultId);
+        allow create: if canReadAdult(adultId);
+        allow update, delete: if isAdmin() || isOwner(adultId);
+      }
+
+      match /accessibility/{settingsId} {
+        allow read: if canReadAdult(adultId);
+        allow create, update: if canReadAdult(adultId);
+        allow delete: if isOwner(adultId) || isAdmin();
+      }
+    }
+
+    match /content/{documentId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+  }
+}

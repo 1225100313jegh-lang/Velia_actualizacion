@@ -1,4 +1,5 @@
 // Validaciones de formularios.
+/// Revisa que el campo tenga algún dato.
 String? validarObligatorio(String? valor, String nombreCampo) {
   if (valor == null || valor.trim().isEmpty) {
     return 'Escribe $nombreCampo';
@@ -6,6 +7,7 @@ String? validarObligatorio(String? valor, String nombreCampo) {
   return null;
 }
 
+/// Revisa que el nombre tenga al menos tres letras.
 String? validarNombre(String? valor) {
   if (valor == null || valor.trim().length < 3) {
     return 'El nombre debe tener al menos 3 letras';
@@ -13,6 +15,7 @@ String? validarNombre(String? valor) {
   return null;
 }
 
+/// Revisa que el correo tenga un formato básico válido.
 String? validarCorreo(String? valor) {
   if (valor == null || valor.trim().isEmpty) {
     return 'Escribe tu correo';
@@ -24,6 +27,7 @@ String? validarCorreo(String? valor) {
   return null;
 }
 
+/// Revisa que la contraseña tenga seis caracteres y un número.
 String? validarContrasena(String? valor) {
   if (valor == null || valor.isEmpty) {
     return 'Escribe tu contraseña';

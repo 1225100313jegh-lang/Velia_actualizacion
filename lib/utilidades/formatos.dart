@@ -32,6 +32,7 @@ String formatearFecha(DateTime fecha) {
   return '$dia ${fecha.day} $mes';
 }
 
+/// Muestra la hora en formato de 12 horas.
 String formatearHora(TimeOfDay hora) {
   final esManana = hora.hour < 12;
   var hora12 = hora.hour % 12;
@@ -41,6 +42,7 @@ String formatearHora(TimeOfDay hora) {
   return '$horas:$minutos ${esManana ? 'a.m.' : 'p.m.'}';
 }
 
+/// Muestra si una fecha es hoy y agrega su hora.
 String describirMomento(DateTime momento) {
   final ahora = DateTime.now();
   final esHoy = momento.year == ahora.year &&

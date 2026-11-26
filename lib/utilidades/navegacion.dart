@@ -7,6 +7,7 @@ import '../pantallas/panel_cliente.dart';
 import '../pantallas/panel_familiar.dart';
 
 // Devuelve el panel correspondiente al rol.
+/// Crea la pantalla inicial según el tipo de cuenta.
 Widget panelSegunRol(RolUsuario rol) {
   return switch (rol) {
     RolUsuario.administrador => const PanelAdministrador(),
@@ -16,6 +17,7 @@ Widget panelSegunRol(RolUsuario rol) {
 }
 
 // Abre el panel de la cuenta activa.
+/// Cambia al panel del usuario que inició sesión.
 void irAlPanel(BuildContext context, RolUsuario rol) {
   final estado = context.read<EstadoApp>();
   if (estado.usuarioActual == null || estado.usuarioActual!.rol != rol) return;

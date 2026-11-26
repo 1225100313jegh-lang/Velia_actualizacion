@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Modify this file to customize your launch splash screen -->
+<!-- Fondo que se muestra mientras inicia la aplicación. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@android:color/white" />
 
-    <!-- You can insert your own image assets here -->
+    <!-- Aquí se puede agregar una imagen propia para el splash. -->
     <!-- <item>
         <bitmap
             android:gravity="center"

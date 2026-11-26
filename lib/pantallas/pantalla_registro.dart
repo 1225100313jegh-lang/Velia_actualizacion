@@ -66,7 +66,7 @@ class _PantallaRegistroState extends State<PantallaRegistro> {
           context,
           MaterialPageRoute(
               builder: (_) =>
-                  PantallaEsperaVinculo(emailFamiliar: cuenta!.email)),
+                  PantallaEsperaVinculo(emailFamiliar: cuenta.email)),
           (_) => false);
       return;
     }

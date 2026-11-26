@@ -1,15 +1,15 @@
 import 'dart:collection';
 import 'package:flutter/material.dart';
-import '../datos/datos_ejemplo.dart';
+import '../datos/datos_ejemplo.dart' show Actividad, rutinaDiaria;
 import '../modelos/usuario.dart';
 import '../modelos/medicamento.dart';
 import '../modelos/evento.dart';
 
 // Estado compartido y permisos de la aplicación.
 class EstadoApp extends ChangeNotifier {
-  final List<Usuario> _usuarios = List.of(usuariosEjemplo);
-  final List<Medicamento> _medicamentos = List.of(medicamentosEjemplo);
-  final List<Evento> _eventos = List.of(eventosEjemplo);
+  final List<Usuario> _usuarios = [];
+  final List<Medicamento> _medicamentos = [];
+  final List<Evento> _eventos = [];
   final List<Actividad> _rutinas = List.of(rutinaDiaria);
   final List<DateTime> _avisosBienestar = [];
   int _avisosLeidos = 0;
@@ -79,6 +79,7 @@ class EstadoApp extends ChangeNotifier {
   // Sesión y registro
 
   // Inicia sesión con correo y contraseña.
+  /// Revisa los datos y activa la cuenta local correspondiente.
   bool iniciarSesion(String correo, String contrasena) {
     final correoLimpio = correo.trim().toLowerCase();
     for (final usuario in _usuarios) {
@@ -93,6 +94,7 @@ class EstadoApp extends ChangeNotifier {
   }
 
   // Registra una cuenta nueva.
+  /// Crea una cuenta de demostración y devuelve un error si no es válida.
   String? registrar({
     required String nombre,
     required String correo,
@@ -119,18 +121,21 @@ class EstadoApp extends ChangeNotifier {
     return null;
   }
 
+  /// Cierra la sesión local y limpia la cuenta activa.
   void cerrarSesion() {
     _usuarioActual = null;
     _rolActivo = null;
     notifyListeners();
   }
 
+  /// Actualiza el panel asociado al rol indicado.
   void cambiarPanel(RolUsuario rol) {
     if (_usuarioActual?.rol != rol) return;
     _rolActivo = rol;
     notifyListeners();
   }
 
+  /// Elimina una cuenta de la lista local de usuarios.
   bool eliminarUsuario(Usuario usuario) {
     if (!esAdministrador || identical(usuario, _usuarioActual)) return false;
     final eliminado = _usuarios.remove(usuario);
@@ -140,12 +145,14 @@ class EstadoApp extends ChangeNotifier {
 
   // Medicamentos
 
+  /// Agrega un medicamento y ordena la lista por hora.
   void agregarMedicamento(Medicamento medicamento) {
     if (!puedeEditarCuidados) return;
     _medicamentos.add(medicamento);
     notifyListeners();
   }
 
+  /// Reemplaza los datos de un medicamento existente.
   void editarMedicamento(Medicamento anterior, Medicamento actualizado) {
     if (!puedeEditarCuidados) return;
     final indice = _medicamentos.indexOf(anterior);
@@ -154,6 +161,7 @@ class EstadoApp extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Quita un medicamento de la lista local.
   void eliminarMedicamento(Medicamento medicamento) {
     if (!puedeEditarCuidados) return;
     _medicamentos.remove(medicamento);
@@ -166,12 +174,14 @@ class EstadoApp extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Agrega una actividad a la rutina diaria.
   void agregarRutina(Actividad actividad) {
     if (!puedeEditarCuidados) return;
     _rutinas.add(actividad);
     notifyListeners();
   }
 
+  /// Actualiza una actividad de la rutina.
   void editarRutina(Actividad anterior, Actividad actualizada) {
     if (!puedeEditarCuidados) return;
     final indice = _rutinas.indexOf(anterior);
@@ -180,12 +190,14 @@ class EstadoApp extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Quita una actividad de la rutina.
   void eliminarRutina(Actividad actividad) {
     if (!puedeEditarCuidados) return;
     _rutinas.remove(actividad);
     notifyListeners();
   }
 
+  /// Marca una actividad como realizada o pendiente.
   void cambiarEstadoRutina(Actividad actividad) {
     if (!puedeEditarCuidados) return;
     editarRutina(
@@ -196,12 +208,14 @@ class EstadoApp extends ChangeNotifier {
 
   // Eventos
 
+  /// Agrega una cita o evento al calendario local.
   void agregarEvento(Evento evento) {
     if (!puedeEditarCuidados) return;
     _eventos.add(evento);
     notifyListeners();
   }
 
+  /// Quita una cita o evento del calendario local.
   void eliminarEvento(Evento evento) {
     if (!puedeEditarCuidados) return;
     _eventos.remove(evento);
@@ -217,6 +231,7 @@ class EstadoApp extends ChangeNotifier {
   // Avisos de bienestar
 
   // Registra que la persona indicó que está bien.
+  /// Agrega un aviso de bienestar a la lista local.
   void registrarBienestar() {
     _avisosBienestar.add(DateTime.now());
     notifyListeners();
