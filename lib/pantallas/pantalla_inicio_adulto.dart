@@ -49,6 +49,104 @@ class _PantallaInicioAdultoState extends State<PantallaInicioAdulto> {
 
   String _clock(DateTime value) =>
       '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}';
+
+  /// Arma una frase breve con la acción, el horario y el periodo.
+  String _descripcionRutina(ElementoRutina item) {
+    final esMedicamento = item.tipo == TipoRutina.medicamento;
+    final partes = <String>[
+      esMedicamento ? 'Medicamento: ${item.nombre}.' : 'Actividad: ${item.nombre}.',
+    ];
+    if (esMedicamento && item.dosis.trim().isNotEmpty) {
+      partes.add('Toma ${item.dosis}.');
+    }
+    if (item.modo == ModoHorario.intervalo) {
+      partes.add(
+        'Cada ${item.intervaloHoras ?? 8} horas, empezando a las ${_horaHablada(item.horaInicio ?? '08:00')}.',
+      );
+    } else if (item.horas.isNotEmpty) {
+      partes.add(
+        'A las ${item.horas.map(_horaHablada).join(' y a las ')}.',
+      );
+    } else {
+      partes.add('Horario pendiente.');
+    }
+    partes.add('${_diasHablados(item.dias)}.');
+    partes.add(_periodoHablado(item));
+    return partes.join(' ');
+  }
+
+  String _horaHablada(String valor) {
+    final partes = valor.split(':');
+    if (partes.length != 2) return valor;
+    final hora = int.tryParse(partes[0]);
+    final minuto = int.tryParse(partes[1]);
+    if (hora == null || minuto == null) return valor;
+    final hora12 = hora % 12 == 0 ? 12 : hora % 12;
+    final periodo = hora == 0 || hora >= 19
+        ? 'de la noche'
+        : hora < 6
+            ? 'de la madrugada'
+            : hora < 12
+                ? 'de la mañana'
+                : 'de la tarde';
+    return minuto == 0
+        ? '$hora12 $periodo'
+        : '$hora12 con ${minuto.toString().padLeft(2, '0')} $periodo';
+  }
+
+  String _diasHablados(List<int> dias) {
+    const nombres = [
+      'lunes',
+      'martes',
+      'miércoles',
+      'jueves',
+      'viernes',
+      'sábado',
+      'domingo',
+    ];
+    if (dias.length == 7) return 'Todos los días';
+    final seleccionados = dias
+        .where((dia) => dia >= 1 && dia <= 7)
+        .map((dia) => nombres[dia - 1])
+        .toList();
+    if (seleccionados.isEmpty) return 'En los días programados';
+    return 'Los ${seleccionados.join(', ')}';
+  }
+
+  String _periodoHablado(ElementoRutina item) {
+    if (item.periodoIndeterminado) return 'Por tiempo indeterminado.';
+    final inicio = item.fechaInicio;
+    final fin = item.fechaFin;
+    if (inicio == null && fin == null) {
+      return 'Sin fecha de término definida.';
+    }
+    if (inicio == null) return 'Hasta el ${_fechaHablada(fin!)}.';
+    if (fin == null) return 'Desde el ${_fechaHablada(inicio)}.';
+    final dias = fin.difference(inicio).inDays.abs() + 1;
+    final duracion = dias % 7 == 0
+        ? '${dias ~/ 7} ${dias ~/ 7 == 1 ? 'semana' : 'semanas'}'
+        : '$dias ${dias == 1 ? 'día' : 'días'}';
+    return 'Por $duracion, del ${_fechaHablada(inicio)} al ${_fechaHablada(fin)}.';
+  }
+
+  String _fechaHablada(DateTime fecha) =>
+      '${fecha.day} de ${_mesHablado(fecha.month)} de ${fecha.year}';
+
+  String _mesHablado(int mes) => const [
+        'enero',
+        'febrero',
+        'marzo',
+        'abril',
+        'mayo',
+        'junio',
+        'julio',
+        'agosto',
+        'septiembre',
+        'octubre',
+        'noviembre',
+        'diciembre',
+      ][mes - 1];
+
   bool _active(HorarioBienestar h) {
     final now = DateTime.now();
     if (!h.activo || !h.dias.contains(now.weekday)) return false;
@@ -268,8 +366,7 @@ class _PantallaInicioAdultoState extends State<PantallaInicioAdulto> {
                             'No tienes actividades programadas para hoy.')))
               else
                 ...todaysRoutine.map((r) => GestoAccesible(
-                    texto:
-                        '${r.nombre}. ${r.dosis}. ${r.modo == ModoHorario.horasFijas ? r.horas.join(', ') : 'Cada ${r.intervaloHoras} horas'}',
+                    texto: _descripcionRutina(r),
                     child: Card(
                         child: ListTile(
                             leading: Icon(
@@ -301,7 +398,7 @@ class _PantallaInicioAdultoState extends State<PantallaInicioAdulto> {
               else
                 ...upcoming.take(5).map((c) => GestoAccesible(
                     texto:
-                        '${c.asunto}. ${c.fecha.day}/${c.fecha.month}/${c.fecha.year} a las ${_clock(c.fecha)}',
+                        'Próxima cita: ${c.asunto}. El ${_fechaHablada(c.fecha)} a las ${_horaHablada(_clock(c.fecha))}.',
                     child: Card(
                         child: ListTile(
                             leading: const Icon(Icons.calendar_month,

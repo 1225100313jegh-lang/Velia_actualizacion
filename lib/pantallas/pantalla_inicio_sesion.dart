@@ -55,6 +55,30 @@ class _PantallaInicioSesionState extends State<PantallaInicioSesion> {
     }
   }
 
+  /// Inicia sesión del familiar con la cuenta de Google vinculada.
+  Future<void> _ingresarConGoogle() async {
+    setState(() {
+      _cargando = true;
+      _error = null;
+    });
+    try {
+      await ServicioNubeVelia.instancia.iniciarSesionGoogle();
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const PantallaPrincipalFirebase()),
+      );
+    } on FirebaseAuthException catch (e) {
+      if (mounted) setState(() => _error = _mensajeAuth(e));
+    } catch (e) {
+      if (mounted) {
+        setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+      }
+    } finally {
+      if (mounted) setState(() => _cargando = false);
+    }
+  }
+
   String _mensajeAuth(FirebaseAuthException e) => switch (e.code) {
         'invalid-email' => 'Revisa el correo electrónico.',
         'user-not-found' ||
@@ -180,6 +204,16 @@ class _PantallaInicioSesionState extends State<PantallaInicioSesion> {
                       ),
                     ),
                     if (!_esAdulto) ...[
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: OutlinedButton.icon(
+                          onPressed: _cargando ? null : _ingresarConGoogle,
+                          icon: const Icon(Icons.account_circle_outlined),
+                          label: const Text('Continuar con Google'),
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       SizedBox(
                         width: double.infinity,

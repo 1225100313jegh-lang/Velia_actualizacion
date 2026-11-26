@@ -22,24 +22,30 @@ class _GestoAccesibleState extends State<GestoAccesible> {
   Timer? _timer;
   int _taps = 0;
 
+  @override
+  void initState() {
+    super.initState();
+    ServicioLecturaVelia.instancia.preparar();
+  }
+
   /// Ejecuta, lee o detiene la acción según la cantidad de toques.
   void _up(PointerEvent event) {
     _taps++;
+    _timer?.cancel();
     if (_taps == 3) {
-      _timer?.cancel();
       _taps = 0;
       ServicioLecturaVelia.instancia.detener();
       return;
     }
-    _timer?.cancel();
-    _timer = Timer(const Duration(milliseconds: 420), () {
-      final taps = _taps;
+    if (_taps == 2) {
+      // Leer al segundo toque conserva el permiso de audio del navegador.
+      ServicioLecturaVelia.instancia.leer(widget.texto);
+      _timer = Timer(const Duration(milliseconds: 700), () => _taps = 0);
+      return;
+    }
+    _timer = Timer(const Duration(milliseconds: 700), () {
       _taps = 0;
-      if (taps == 1) {
-        widget.onSingleTap?.call();
-      } else if (taps == 2) {
-        ServicioLecturaVelia.instancia.leer(widget.texto);
-      }
+      widget.onSingleTap?.call();
     });
   }
 

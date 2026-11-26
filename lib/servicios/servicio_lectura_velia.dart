@@ -6,6 +6,9 @@ class ServicioLecturaVelia {
   final FlutterTts _tts = FlutterTts();
   bool _ready = false;
 
+  /// Prepara la voz antes de que la persona intente usarla.
+  Future<void> preparar() => _prepare();
+
   Future<void> _prepare() async {
     if (_ready) return;
     await _tts.setLanguage('es-MX');

@@ -56,23 +56,50 @@ class _PantallaRegistroFamiliarState extends State<PantallaRegistroFamiliar> {
         codigoInvitacion:
             _codigo.text.trim().isEmpty ? null : _codigo.text.trim(),
       );
-      if (!mounted) return;
-      final esInvitado = _codigo.text.trim().isNotEmpty;
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (_) => esInvitado
-              ? const PantallaPrincipalFirebase()
-              : const PantallaAgregarAdulto(esRegistroInicial: true),
-        ),
-        (_) => false,
-      );
+      _continuar();
     } catch (e) {
       if (mounted)
         setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _cargando = false);
     }
+  }
+
+  /// Crea la cuenta familiar usando el nombre y correo de Google.
+  Future<void> _crearConGoogle() async {
+    setState(() {
+      _cargando = true;
+      _error = null;
+    });
+    try {
+      await ServicioNubeVelia.instancia.registrarFamiliarConGoogle(
+        telefono: _telefono.text,
+        parentesco: _parentesco.text,
+        codigoInvitacion:
+            _codigo.text.trim().isEmpty ? null : _codigo.text.trim(),
+      );
+      _continuar();
+    } catch (e) {
+      if (mounted) {
+        setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+      }
+    } finally {
+      if (mounted) setState(() => _cargando = false);
+    }
+  }
+
+  void _continuar() {
+    if (!mounted) return;
+    final esInvitado = _codigo.text.trim().isNotEmpty;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) => esInvitado
+            ? const PantallaPrincipalFirebase()
+            : const PantallaAgregarAdulto(esRegistroInicial: true),
+      ),
+      (_) => false,
+    );
   }
 
   @override
@@ -158,6 +185,20 @@ class _PantallaRegistroFamiliarState extends State<PantallaRegistroFamiliar> {
                         : const Icon(Icons.arrow_forward),
                     label: Text(_cargando ? 'Creando cuenta…' : 'Continuar'),
                   ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 54,
+                  child: OutlinedButton.icon(
+                    onPressed: _cargando ? null : _crearConGoogle,
+                    icon: const Icon(Icons.account_circle_outlined),
+                    label: const Text('Registrarme con Google'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Google agrega tu nombre y correo. El teléfono y el parentesco son opcionales.',
+                  textAlign: TextAlign.center,
                 ),
               ],
             ),

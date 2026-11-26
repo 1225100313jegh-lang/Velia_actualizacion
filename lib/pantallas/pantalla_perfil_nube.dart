@@ -23,6 +23,22 @@ class _PantallaPerfilNubeState extends State<PantallaPerfilNube> {
   void _reload() => setState(
       () => _adultos = _service.listarAdultosDeCuenta(_service.cuenta!.uid));
 
+  /// Vincula una cuenta de Google con la cuenta familiar activa.
+  Future<void> _vincularGoogle() async {
+    try {
+      await _service.vincularGoogleActual();
+      if (!mounted) return;
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cuenta de Google vinculada.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('$e')));
+    }
+  }
+
   Future<void> _pin(PerfilAdulto adulto, {bool renovar = false}) async {
     try {
       final pin = renovar
@@ -97,6 +113,22 @@ class _PantallaPerfilNubeState extends State<PantallaPerfilNube> {
                   subtitle: Text(family.email),
                   trailing: Text(
                       canManage ? 'Familiar principal' : 'Solo consulta'))),
+          if (family.rol == 'family')
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.account_circle_outlined),
+                title: Text(_service.tieneGoogleVinculado
+                    ? 'Google vinculado'
+                    : 'Vincular con Google'),
+                subtitle: Text(_service.tieneGoogleVinculado
+                    ? 'Puedes usar Google para iniciar sesión.'
+                    : 'Vincula Google para iniciar sesión con esa cuenta.'),
+                trailing: _service.tieneGoogleVinculado
+                    ? const Icon(Icons.check_circle, color: Colors.green)
+                    : const Icon(Icons.link),
+                onTap: _service.tieneGoogleVinculado ? null : _vincularGoogle,
+              ),
+            ),
           const SizedBox(height: 8),
           const Text('Personas a tu cuidado',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),

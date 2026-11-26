@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../modelos/modelos_velia.dart';
 import '../datos/frases_bonitas.dart';
@@ -51,6 +52,7 @@ class ServicioNubeVelia extends ChangeNotifier {
   bool _inicializado = false;
   double _escalaTexto = 1.2;
   bool _altoContraste = true;
+  Future<void>? _inicioGoogle;
 
   bool get inicializado => _inicializado;
   double get escalaTexto => _escalaTexto;
@@ -59,6 +61,9 @@ class ServicioNubeVelia extends ChangeNotifier {
   CuentaVelia? get cuenta => _cuenta;
   PerfilAdulto? get adultoSeleccionado => _adultoSeleccionado;
   bool get esAdmin => _cuenta?.rol == 'admin';
+  bool get tieneGoogleVinculado => _auth?.currentUser?.providerData
+          .any((proveedor) => proveedor.providerId == 'google.com') ??
+      false;
   bool get esFamiliarPrincipal =>
       _cuenta?.rol == 'family' && _adultoSeleccionado?.ownerUid == _cuenta?.uid;
   FirebaseFirestore get _firestore => _db!;
@@ -140,6 +145,96 @@ class ServicioNubeVelia extends ChangeNotifier {
     }
     notifyListeners();
     return _cuenta!;
+  }
+
+  /// Crea una cuenta familiar con Google y guarda sus datos básicos.
+  Future<CuentaVelia> registrarFamiliarConGoogle({
+    String telefono = '',
+    String parentesco = '',
+    String? codigoInvitacion,
+  }) async {
+    final credencial = await _autenticarConGoogle();
+    final usuario = credencial.user!;
+    final referencia = _firestore.collection('users').doc(usuario.uid);
+    final existente = await referencia.get();
+    if (existente.exists) {
+      await _firebaseAuth.signOut();
+      throw StateError('Esta cuenta de Google ya está registrada. Inicia sesión.');
+    }
+    final datos = {
+      'role': 'family',
+      'email': usuario.email ?? '',
+      'nombre': usuario.displayName ?? '',
+      'telefono': telefono.trim(),
+      'parentesco': parentesco.trim(),
+      'createdAt': FieldValue.serverTimestamp(),
+    };
+    await referencia.set(datos);
+    _cuenta = CuentaVelia.fromMap(usuario.uid, datos);
+    _adultoSeleccionado = null;
+    if (codigoInvitacion != null && codigoInvitacion.trim().isNotEmpty) {
+      await aceptarInvitacion(codigoInvitacion.trim());
+    }
+    notifyListeners();
+    return _cuenta!;
+  }
+
+  /// Abre una cuenta familiar existente con Google.
+  Future<CuentaVelia> iniciarSesionGoogle() async {
+    final credencial = await _autenticarConGoogle();
+    final usuario = credencial.user!;
+    final documento = await _firestore.collection('users').doc(usuario.uid).get();
+    if (!documento.exists) {
+      await _firebaseAuth.signOut();
+      throw StateError('No hay una cuenta Velia registrada con este Google.');
+    }
+    final cuenta = await cargarCuentaActual();
+    if (cuenta == null || (cuenta.rol != 'family' && cuenta.rol != 'admin')) {
+      await _firebaseAuth.signOut();
+      _cuenta = null;
+      _adultoSeleccionado = null;
+      throw StateError('Esta cuenta no corresponde a un familiar.');
+    }
+    return cuenta;
+  }
+
+  /// Vincula Google a la cuenta familiar que ya inició sesión.
+  Future<void> vincularGoogleActual() async {
+    final usuario = usuarioAuth;
+    if (usuario == null || _cuenta?.rol != 'family') {
+      throw StateError('Inicia sesión con una cuenta familiar primero.');
+    }
+    if (kIsWeb) {
+      await usuario.linkWithPopup(GoogleAuthProvider());
+    } else {
+      _inicioGoogle ??= GoogleSignIn.instance.initialize();
+      await _inicioGoogle;
+      final cuentaGoogle = await GoogleSignIn.instance.authenticate();
+      final token = cuentaGoogle.authentication.idToken;
+      if (token == null) {
+        throw StateError('Google no devolvió el token de acceso.');
+      }
+      await usuario.linkWithCredential(
+        GoogleAuthProvider.credential(idToken: token),
+      );
+    }
+    notifyListeners();
+  }
+
+  Future<UserCredential> _autenticarConGoogle() async {
+    if (kIsWeb) {
+      return _firebaseAuth.signInWithPopup(GoogleAuthProvider());
+    }
+    _inicioGoogle ??= GoogleSignIn.instance.initialize();
+    await _inicioGoogle;
+    final cuentaGoogle = await GoogleSignIn.instance.authenticate();
+    final token = cuentaGoogle.authentication.idToken;
+    if (token == null) {
+      throw StateError('Google no devolvió el token de acceso.');
+    }
+    return _firebaseAuth.signInWithCredential(
+      GoogleAuthProvider.credential(idToken: token),
+    );
   }
 
   Future<CuentaVelia> iniciarSesionFamiliar(
